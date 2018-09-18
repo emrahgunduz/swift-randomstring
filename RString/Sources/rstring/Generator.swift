@@ -54,38 +54,6 @@ public class Generator {
 
 public extension Generator {
 
-  private func generateDoWork (onComplete: () -> Void) {
-    // Generate multiple strings for improved concurrency
-    // let loop = Generator.maxLoopCount(limit: self.count)
-
-    var elements = [String]()
-    for _ in 1 ... 100 {
-      elements.append(String.randomString(length: self.length, allowed: self.allowedSet))
-    }
-
-    toTrie: for item in elements {
-      // Do not continue if we already have enough items
-      if (self.remaining.value > self.count) {
-        break toTrie
-      }
-
-      // Check if this element is unique
-      let exists = self.trie.exists(element: item)
-
-      if (exists) {
-        continue
-      }
-
-      self.generated.append(item)
-      self.trie.insert(element: item)
-
-      // Decrement remaining and continue
-      self.remaining.increment()
-    }
-
-    onComplete()
-  }
-
   private func generateRunGroup () {
     do {
       let group = DispatchGroup()
@@ -93,9 +61,17 @@ public extension Generator {
 
       DispatchQueue.concurrentPerform(iterations: self.count) { index in
         group.enter()
-        self.generateDoWork {
-          group.leave()
+
+        let item = String.randomString(length: self.length, allowed: self.allowedSet)
+        if (self.trie.exists(element: item)) {
+          return
         }
+
+        self.generated.append(item)
+        self.trie.insert(element: item)
+        self.remaining.increment()
+
+        group.leave()
       }
 
       group.notify(queue: DispatchQueue.main) {
@@ -109,26 +85,33 @@ public extension Generator {
   public func generate () {
     // TODO: Add a way to listen/unlisten with SIGKILL here
 
-//    self.elapsed.reset()
-//    let timer = DispatchSource.makeTimerSource()
-//    timer.setEventHandler { [weak self] in
-//      let generator = self!
-//      let count     = String(generator.generated.count)
-//      let elapsed   = String(generator.elapsed.end())
-//      Log.log(title: "Generator", message: "Computed \(count) items, elapsed \(elapsed) second(s)")
-//    }
-//    timer.schedule(deadline: .now(), repeating: 1, leeway: .seconds(0))
-//    timer.resume()
+    self.elapsed.reset()
+    let timer = DispatchSource.makeTimerSource()
+    do {
+      timer.setEventHandler { [weak self] in
+        let generator = self!
+        let count     = generator.generated.count
+        let elapsed   = generator.elapsed.end()
+        let (h, m, s) = Int(Double(generator.count) * elapsed / Double(count)).secondsToHMS()
 
-    while (remaining.value < self.count) {
-      Log.warning(title: "Generator", message: "Loop hit...")
-      self.generateRunGroup()
+        let hh = String(format: "%02d", h)
+        let mm = String(format: "%02d", m)
+        let ss = String(format: "%02d", s)
+
+        Log.log(title: "Generator", message: "Computed \(count) items, elapsed \(elapsed) second(s), remains \(hh):\(mm):\(ss) second(s)")
+      }
+      timer.schedule(deadline: .now(), repeating: 5, leeway: .seconds(0))
+      timer.resume()
     }
 
-//    timer.setEventHandler {}
-//    timer.cancel()
-//    timer.suspend()
-    Log.log(title: "Generator", message: "Generated \(self.generated.count) random items")
+    self.generateRunGroup()
+
+    timer.cancel()
+    do {
+      let count   = self.generated.count
+      let elapsed = self.elapsed.end()
+      Log.log(title: "Generator", message: "Computed \(count) items, elapsed \(elapsed) second(s)")
+    }
 
     // TODO: Dump to output file
   }

@@ -15,6 +15,12 @@ public struct LoadedAnswer {
   var inputFile:  String?
 }
 
+public extension Int {
+  func secondsToHMS () -> (Int, Int, Int) {
+    return (self / 3600, (self % 3600) / 60, (self % 3600) % 60)
+  }
+}
+
 // Common vars
 public extension String {
   var lines: [String] {
