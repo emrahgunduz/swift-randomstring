@@ -28,5 +28,7 @@ if (answer.helpRequested) {
 }
 
 let generator = Generator(answer: answer)
+
+sleep(1)
 generator.generate()
 

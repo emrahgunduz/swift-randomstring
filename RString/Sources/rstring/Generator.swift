@@ -17,7 +17,9 @@ public class Generator {
   private let trie:      Trie                      = Trie()
   private var generated: SynchronizedArray<String> = SynchronizedArray<String>()
 
-  var remaining = Counter(0)
+  private let elapsed   = Elapsed()
+  private var remaining = Counter(0)
+  private var timer: Timer!
 
   public init (answer: LoadedAnswer) {
     self.length = answer.length
@@ -66,23 +68,20 @@ public extension Generator {
       // Do not continue if we already have enough items
       if (self.remaining.value > self.count) {
         break toTrie
-        return
       }
 
       // Check if this element is unique
       let exists = self.trie.exists(element: item)
 
       if (exists) {
-        return
+        continue
       }
 
-      generated.append(item)
-      trie.insert(element: item)
+      self.generated.append(item)
+      self.trie.insert(element: item)
 
       // Decrement remaining and continue
       self.remaining.increment()
-
-      Log.log(title: "doWork", message: "\(self.remaining.value) = \(item)")
     }
 
     onComplete()
@@ -111,9 +110,17 @@ public extension Generator {
   public func generate () {
     // TODO: Add a way to listen/unlisten with SIGKILL here
 
-    while (remaining.value < self.count) {
-      runGroup()
+    self.elapsed.reset()
+    self.timer = Timer(timeInterval: 1, repeats: true) { timer in
+      Log.log(title: "Generator", message: "Computed \(self.generated.count) items, elapsed \(self.elapsed.end()) second(s)")
     }
+
+    while (remaining.value < self.count) {
+      self.runGroup()
+    }
+
+    Log.log(title: "Generator", message: "Generated \(self.generated.count) random items")
+    timer?.invalidate()
 
     // TODO: Dump to output file
   }

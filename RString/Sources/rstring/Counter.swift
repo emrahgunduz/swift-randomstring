@@ -1,4 +1,5 @@
 import Foundation
+import Log
 
 #if os(macOS) || os(iOS) || os(tvOS)
 import Darwin
