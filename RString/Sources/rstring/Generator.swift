@@ -19,7 +19,6 @@ public class Generator {
 
   private let elapsed   = Elapsed()
   private var remaining = Counter(0)
-  private var timer: Timer!
 
   public init (answer: LoadedAnswer) {
     self.length = answer.length
@@ -55,12 +54,12 @@ public class Generator {
 
 public extension Generator {
 
-  private func doWork (onComplete: () -> Void) {
+  private func generateDoWork (onComplete: () -> Void) {
     // Generate multiple strings for improved concurrency
-    let loop = Generator.maxLoopCount(limit: self.count)
+    // let loop = Generator.maxLoopCount(limit: self.count)
 
     var elements = [String]()
-    for _ in 1 ... loop {
+    for _ in 1 ... 100 {
       elements.append(String.randomString(length: self.length, allowed: self.allowedSet))
     }
 
@@ -87,14 +86,14 @@ public extension Generator {
     onComplete()
   }
 
-  private func runGroup () {
+  private func generateRunGroup () {
     do {
       let group = DispatchGroup()
       let _     = DispatchQueue.global(qos: .userInitiated)
 
       DispatchQueue.concurrentPerform(iterations: self.count) { index in
         group.enter()
-        self.doWork {
+        self.generateDoWork {
           group.leave()
         }
       }
@@ -110,17 +109,26 @@ public extension Generator {
   public func generate () {
     // TODO: Add a way to listen/unlisten with SIGKILL here
 
-    self.elapsed.reset()
-    self.timer = Timer(timeInterval: 1, repeats: true) { timer in
-      Log.log(title: "Generator", message: "Computed \(self.generated.count) items, elapsed \(self.elapsed.end()) second(s)")
-    }
+//    self.elapsed.reset()
+//    let timer = DispatchSource.makeTimerSource()
+//    timer.setEventHandler { [weak self] in
+//      let generator = self!
+//      let count     = String(generator.generated.count)
+//      let elapsed   = String(generator.elapsed.end())
+//      Log.log(title: "Generator", message: "Computed \(count) items, elapsed \(elapsed) second(s)")
+//    }
+//    timer.schedule(deadline: .now(), repeating: 1, leeway: .seconds(0))
+//    timer.resume()
 
     while (remaining.value < self.count) {
-      self.runGroup()
+      Log.warning(title: "Generator", message: "Loop hit...")
+      self.generateRunGroup()
     }
 
+//    timer.setEventHandler {}
+//    timer.cancel()
+//    timer.suspend()
     Log.log(title: "Generator", message: "Generated \(self.generated.count) random items")
-    timer?.invalidate()
 
     // TODO: Dump to output file
   }
@@ -134,22 +142,22 @@ private extension Generator {
 
     switch limit {
       case 0 ..< 1000:            // 1.000
-        loop = 10
+        loop = 1
         break
       case 1000 ..< 10000:        // 10.000
-        loop = 100
+        loop = 10
         break
       case 10000 ..< 1000000:     // 1.000.000
-        loop = 1000
+        loop = 100
         break
       case 1000000 ..< 10000000:  // 10.000.000
-        loop = 100000
+        loop = 10000
         break
       case 10000000 ..< 100000000:  // 100.000.000
-        loop = 1000000
+        loop = 100000
         break
       default:
-        loop = 10000000
+        loop = 100000
         break
     }
 
