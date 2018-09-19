@@ -24,7 +24,9 @@ be made unique, if already is not. Default value is `ABCDEFGHIJKLMNOPQRSTUVWXYZ0
 
 ##### `-o` `--out`
 _Optional_. A file to write the generated codes to. Every code is written as a single 
-line. If a file is not defined, output will be dumped to a file in `/tmp/random-*.txt` folder.
+line. If a file is not defined, output will be dumped to a file in `/tmp/random-*.txt` 
+folder. Application **appends to the file**, does not replace the contents. If file 
+does not exists, it is created.
 
 ##### `-f` `--file` 
 _Optional_. Loads a file containing a simple list of  already existing randomized 

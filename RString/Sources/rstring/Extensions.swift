@@ -15,9 +15,15 @@ public struct LoadedAnswer {
   var inputFile:  String?
 }
 
+infix operator **: MultiplicationPrecedence
+
 public extension Int {
   func secondsToHMS () -> (Int, Int, Int) {
     return (self / 3600, (self % 3600) / 60, (self % 3600) % 60)
+  }
+
+  static func ** (left: Int, right: Int) -> Int {
+    return Int(pow(CGFloat(left), CGFloat(right)))
   }
 }
 

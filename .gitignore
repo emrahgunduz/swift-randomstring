@@ -4,3 +4,4 @@ Packages
 Package.resolved
 *.xcodeproj
 cmake-build-debug
+random-list.txt

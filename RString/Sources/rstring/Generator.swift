@@ -37,13 +37,12 @@ public class Generator {
         let lines = try Generator.readInputFile(inputFile: answer.inputFile!)
         counter = Generator.writeToTrie(lines: lines, requiredLength: self.length, trie: self.trie)
       } catch {
-        Log.end(message: "Could not load the dictionary file content.")
+        Log.end(message: "Could not read the input file.")
         return
       }
+    } else {
+      counter = Counter()
     }
-
-    var possibleStr = String.factorial(length: answer.set.count)
-    possibleStr.insert(separator: ".", every: 3, fromEnd: true)
 
     do {
       var a = String(counter!.value)
@@ -53,7 +52,6 @@ public class Generator {
 
       Log.log(title: "Generator", message: "Existing item count is \(a)")
       Log.log(title: "Generator", message: "Required new item to generate count is \(b)")
-      Log.log(title: "Generator", message: "Possible factorial count for current set is \(possibleStr) items")
     }
   }
 
@@ -164,14 +162,18 @@ public extension Generator {
       Log.log(title: "Computing", message: "Computed \(count) items, elapsed \(elapsed) second(s)")
     }
 
-    self.writeToOutput()
+    do {
+      try self.writeToOutput()
+    } catch {
+      Log.error(title: "Output", message: "Could not write to \"\(self.outputFile)\" file. Do you have enough permissions?")
+    }
   }
 
 }
 
 private extension Generator {
 
-  private func writeToOutput () {
+  private func writeToOutput () throws {
     if (self.generated.count == 0) {
       Log.log(title: "Output", message: "No random items were generated.")
       return
@@ -185,10 +187,18 @@ private extension Generator {
     }
 
     do {
-      try content.write(toFile: self.outputFile, atomically: false, encoding: .utf8)
+      let fileHandle = try FileHandle(forWritingTo: URL(string: self.outputFile)!)
+      fileHandle.seekToEndOfFile()
+      fileHandle.write(content.data(using: .utf8)!)
+      fileHandle.closeFile()
     } catch {
-      Log.error(title: "Output", message: "Could not write to \"\(self.outputFile)\" file. Do you have enough permissions?")
+      do {
+        try content.write(toFile: self.outputFile, atomically: false, encoding: .utf8)
+      } catch {
+        throw(RStringError.fileReadError)
+      }
     }
+
 
     Log.log(title: "Output", message: "Completed writing. Ending program")
     print("\n\n")
@@ -214,7 +224,7 @@ private extension Generator {
 
       Log.log(title: "Input", message: "Completed reading, \(elapsed.end()) seconds elapsed")
     } catch {
-      throw(RStringError.missingArgument)
+      throw(RStringError.fileReadError)
     }
 
     return lines
@@ -258,9 +268,9 @@ private extension Generator {
             trie.insert(element: trimmed)
             counter += 1
           }
-        }
 
-        group.leave()
+          group.leave()
+        }
       }
 
       group.notify(queue: DispatchQueue.main) {
