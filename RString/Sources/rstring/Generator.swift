@@ -175,34 +175,7 @@ private extension Generator {
 }
 
 private extension Generator {
-
-  private static func maxLoopCount (limit: Int) -> Int {
-    var loop = 10
-
-    switch limit {
-      case 0 ..< 1000:            // 1.000
-        loop = 1
-        break
-      case 1000 ..< 10000:        // 10.000
-        loop = 10
-        break
-      case 10000 ..< 1000000:     // 1.000.000
-        loop = 100
-        break
-      case 1000000 ..< 10000000:  // 10.000.000
-        loop = 10000
-        break
-      case 10000000 ..< 100000000:  // 100.000.000
-        loop = 100000
-        break
-      default:
-        loop = 100000
-        break
-    }
-
-    return loop
-  }
-
+  
   private static func readInputFile (inputFile: String) throws -> [String] {
     let fileUrl = URL(fileURLWithPath: inputFile)
 
