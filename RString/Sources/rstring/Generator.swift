@@ -33,8 +33,6 @@ public class Generator {
     var counter: Counter?
 
     if (answer.inputFile != nil) {
-      Log.log(title: "Generator", message: "Reading input file. " + answer.inputFile!)
-
       do {
         let lines = try Generator.readInputFile(inputFile: answer.inputFile!)
         counter = Generator.writeToTrie(lines: lines, requiredLength: self.length, trie: self.trie)
@@ -43,8 +41,6 @@ public class Generator {
         return
       }
     }
-
-    Log.log(title: "Generator", message: "Trie database is ready.")
 
     var possibleStr = String.factorial(length: answer.set.count)
     possibleStr.insert(separator: ".", every: 3, fromEnd: true)
@@ -71,7 +67,7 @@ public class Generator {
       }
 
       print("\n")
-      Log.warning(title: "Generator", message: "OS release signal (\(signal)) received. Please wait...")
+      Log.warning(title: "SIGNAL", message: "OS release signal (\(signal)) received. Please wait...")
     }
 
     self.observer = NotificationCenter.default.addObserver(forName: self.notificationName, object: nil, queue: OperationQueue.main, using: signalReceived)
@@ -108,7 +104,6 @@ public extension Generator {
 
       group.notify(queue: DispatchQueue.main) {
         // Do nothing, just here to end group
-        Log.log(title: "Generator Group", message: "Notified")
       }
 
       group.wait()
@@ -123,24 +118,37 @@ public extension Generator {
         let generator = self!
 
         if (generator.generated.count == 0) {
-          Log.warning(title: "Generator", message: "No item is generated yet, are you sure there is enough possibility to generate any?")
+          Log.warning(title: "Computing", message: "No item is generated yet, are you sure there is enough possibility to generate any?")
+          return
         }
 
-        let total     = Double(generator.count)
-        let count     = Double(generator.generated.count)
-        let elapsed   = generator.elapsed.end()
-        let remaining = (total * elapsed / count) - elapsed
+        let elapsed = generator.elapsed.end()
 
-        let (h, m, s) = Int(remaining).secondsToHMS()
+        var countStr = String(generator.generated.count)
+        countStr.insert(separator: ".", every: 3, fromEnd: true)
 
-        let hh = String(format: "%02d", h)
-        let mm = String(format: "%02d", m)
-        let ss = String(format: "%02d", s)
+        let remainsHMS: String = {
+          let total     = Double(generator.count)
+          let count     = Double(generator.generated.count)
+          let remaining = (total * elapsed / count) - elapsed
+          let (h, m, s) = Int(remaining).secondsToHMS()
+          let hh        = String(format: "%02d", h)
+          let mm        = String(format: "%02d", m)
+          let ss        = String(format: "%02d", s)
+          return "\(hh):\(mm):\(ss)"
+        }()
 
-        var a = String(generator.generated.count)
-        a.insert(separator: ".", every: 3, fromEnd: true)
-        Log.log(title: "Generator", message: "Computed \(a) items, elapsed \(elapsed) second(s), remains \(hh):\(mm):\(ss) second(s)")
+        let elapsedHMS: String = {
+          let (h, m, s) = Int(elapsed).secondsToHMS()
+          let hh        = String(format: "%02d", h)
+          let mm        = String(format: "%02d", m)
+          let ss        = String(format: "%02d", s)
+          return "\(hh):\(mm):\(ss)"
+        }()
+
+        Log.log(title: "\(remainsHMS)", message: "Computed \(countStr) items, \(elapsedHMS) second(s) elapsed")
       }
+
       timer.schedule(deadline: .now() + .seconds(2), repeating: 5, leeway: .seconds(0))
       timer.resume()
     }
@@ -153,7 +161,7 @@ public extension Generator {
       count.insert(separator: ".", every: 3, fromEnd: true)
 
       let elapsed = self.elapsed.end()
-      Log.log(title: "Generator", message: "Computed \(count) items, elapsed \(elapsed) second(s)")
+      Log.log(title: "Computing", message: "Computed \(count) items, elapsed \(elapsed) second(s)")
     }
 
     self.writeToOutput()
@@ -165,17 +173,31 @@ private extension Generator {
 
   private func writeToOutput () {
     if (self.generated.count == 0) {
-      Log.log(title: "Generator", message: "No random items were generated.")
+      Log.log(title: "Output", message: "No random items were generated.")
       return
     }
 
-    Log.log(title: "Generator", message: "Writing generated items to \"\(self.outputFile)\" file")
+    Log.log(title: "Output", message: "Writing generated items to \"\(self.outputFile)\" file")
+
+    var content = ""
+    self.generated.forEach { item in
+      content += item + "\n"
+    }
+
+    do {
+      try content.write(toFile: self.outputFile, atomically: false, encoding: .utf8)
+    } catch {
+      Log.error(title: "Output", message: "Could not write to \"\(self.outputFile)\" file. Do you have enough permissions?")
+    }
+
+    Log.log(title: "Output", message: "Completed writing. Ending program")
+    print("\n\n")
   }
 
 }
 
 private extension Generator {
-  
+
   private static func readInputFile (inputFile: String) throws -> [String] {
     let fileUrl = URL(fileURLWithPath: inputFile)
 
@@ -183,9 +205,14 @@ private extension Generator {
     var lines:      [String]
 
     do {
+      Log.log(title: "Input", message: "Reading input file. \(inputFile)")
+      let elapsed = Elapsed()
+
       rawContent = try Data(contentsOf: fileUrl, options: .alwaysMapped)
       let content = String(data: rawContent, encoding: .utf8)!
       lines = content.lines
+
+      Log.log(title: "Input", message: "Completed reading, \(elapsed.end()) seconds elapsed")
     } catch {
       throw(RStringError.missingArgument)
     }
@@ -196,30 +223,54 @@ private extension Generator {
   private static func writeToTrie (lines: [String], requiredLength: Int, trie: Trie) -> Counter {
     var counter = Counter(0)
 
-    for (index, line) in lines.enumerated() {
-      var trimmed = line.trim()
-      if (trimmed.count == 0) {
-        continue
-      }
+    Log.log(title: "Trie", message: "Generating trie database")
+    let elapsed = Elapsed()
 
-      if (trimmed.count < requiredLength) {
-        Log.warning(title: "Generator", message: "A line in given file has less characters than anticipated. Passing (Line #\(index))")
-        continue
-      }
+    do {
+      let group = DispatchGroup()
+      let _     = DispatchQueue.global(qos: .userInitiated)
 
-      if (trimmed.count > requiredLength) {
-        Log.warning(title: "Generator", message: "A line in given file has more characters than anticipated. Dropping extensive characters. (Line #\(index))")
-        let diff = trimmed.count - Int(requiredLength)
-        trimmed = String(trimmed.dropLast(diff))
-      }
+      DispatchQueue.concurrentPerform(iterations: lines.count) { index in
+        group.enter()
 
-      trie.exists(element: trimmed) { exists in
-        if (!exists) {
-          trie.insert(element: trimmed)
-          counter += 1
+        let line    = lines[index]
+        var trimmed = line.trim()
+
+        if (trimmed.count == 0) {
+          group.leave()
+          return
         }
+
+        if (trimmed.count < requiredLength) {
+          Log.warning(title: "Trie", message: "A line in given file has less characters than anticipated. Passing (Line #\(index))")
+          group.leave()
+          return
+        }
+
+        if (trimmed.count > requiredLength) {
+          Log.warning(title: "Trie", message: "A line in given file has more characters than anticipated. Dropping extensive characters. (Line #\(index))")
+          let diff = trimmed.count - Int(requiredLength)
+          trimmed = String(trimmed.dropLast(diff))
+        }
+
+        trie.exists(element: trimmed) { exists in
+          if (!exists) {
+            trie.insert(element: trimmed)
+            counter += 1
+          }
+        }
+
+        group.leave()
       }
+
+      group.notify(queue: DispatchQueue.main) {
+        // Do nothing, just here to end group
+      }
+
+      group.wait()
     }
+
+    Log.log(title: "Trie", message: "Trie database is ready, \(elapsed.end()) seconds elapsed")
 
     return counter
   }
