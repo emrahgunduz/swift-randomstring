@@ -11,8 +11,9 @@ let package = Package(
       .package(url: "git@git.markakod.com:nutella/random-code/library-information.git", from: "1.0.0"),
       .package(url: "git@git.markakod.com:nutella/random-code/library-log.git", from: "1.0.0"),
       .package(url: "git@git.markakod.com:nutella/random-code/library-trie.git", from: "1.0.0"),
+      .package(url: "git@git.markakod.com:nutella/random-code/library-signals.git", from: "1.0.0"),
     ],
     targets: [
-      .target(name: "rstring", dependencies: ["Information", "Trie", "Log"])
+      .target(name: "rstring", dependencies: ["Information", "Trie", "Log", "Signals"])
     ]
 )

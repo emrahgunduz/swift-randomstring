@@ -1,5 +1,7 @@
 import Foundation
 import Information
+import Signals
+import Log
 
 #if os(macOS) || os(iOS) || os(tvOS)
 import Darwin
@@ -15,20 +17,26 @@ public func arc4random_uniform (_ max: UInt32) -> UInt32 {
 }
 #endif
 
-let release = "1.0"
-let build   = "100"
-
-Information.printLogo(release: release, build: build)
-
-let runner = Loader()
-let answer = runner.checkArguments()
-if (answer.helpRequested) {
-  Information.printHelp()
-  exit(0)
+func signalHandler (signal: Int32) {
+  NotificationCenter.default.post(name: Notification.Name(rawValue: "com.markakod.signalRecevied"), object: signal)
 }
 
-let generator = Generator(answer: answer)
+Signals.trap(signals: [.hup, .int, .quit, .abrt, .kill, .alrm, .term, .pipe], action: signalHandler)
 
-sleep(1)
-generator.generate()
+do {
+  let release = "1.0"
+  let build   = "100"
 
+  Information.printLogo(release: release, build: build)
+
+  let runner = Loader()
+  let answer = runner.checkArguments()
+  if (answer.helpRequested) {
+    Information.printHelp()
+    exit(0)
+  }
+
+  let generator = Generator(answer: answer)
+  generator.startListeningNotifications()
+  generator.generate()
+}

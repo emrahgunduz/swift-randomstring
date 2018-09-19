@@ -20,6 +20,10 @@ public class Generator {
   private let elapsed   = Elapsed()
   private var remaining = Counter(0)
 
+  private var observer:       NSObjectProtocol?
+  private let notificationName     = Notification.Name(rawValue: "com.markakod.signalRecevied")
+  private var signalReceived: Bool = false
+
   public init (answer: LoadedAnswer) {
     self.length = answer.length
     self.count = answer.count
@@ -45,11 +49,33 @@ public class Generator {
     var possibleStr = String.factorial(length: answer.set.count)
     possibleStr.insert(separator: ".", every: 3, fromEnd: true)
 
-    Log.log(title: "Generator", message: "Existing item count is \(counter!.value)")
-    Log.log(title: "Generator", message: "Required new item to generate count is \(answer.count)")
-    Log.log(title: "Generator", message: "Possible factorial count for current set is \(possibleStr) items")
+    do {
+      var a = String(counter!.value)
+      var b = String(answer.count)
+      a.insert(separator: ".", every: 3, fromEnd: true)
+      b.insert(separator: ".", every: 3, fromEnd: true)
+
+      Log.log(title: "Generator", message: "Existing item count is \(a)")
+      Log.log(title: "Generator", message: "Required new item to generate count is \(b)")
+      Log.log(title: "Generator", message: "Possible factorial count for current set is \(possibleStr) items")
+    }
   }
 
+  public func startListeningNotifications () {
+    let signalReceived: (Notification) -> Void = { notification in
+      self.signalReceived = true
+      NotificationCenter.default.removeObserver(self.observer!)
+
+      guard let signal = notification.object as? Int32 else {
+        return
+      }
+
+      print("\n")
+      Log.warning(title: "Generator", message: "OS release signal (\(signal)) received. Please wait...")
+    }
+
+    self.observer = NotificationCenter.default.addObserver(forName: self.notificationName, object: nil, queue: OperationQueue.main, using: signalReceived)
+  }
 }
 
 public extension Generator {
@@ -62,8 +88,14 @@ public extension Generator {
       DispatchQueue.concurrentPerform(iterations: self.count) { index in
         group.enter()
 
+        if (self.signalReceived) {
+          group.leave()
+          return
+        }
+
         let item = String.randomString(length: self.length, allowed: self.allowedSet)
         if (self.trie.exists(element: item)) {
+          group.leave()
           return
         }
 
@@ -76,6 +108,7 @@ public extension Generator {
 
       group.notify(queue: DispatchQueue.main) {
         // Do nothing, just here to end group
+        Log.log(title: "Generator Group", message: "Notified")
       }
 
       group.wait()
@@ -83,24 +116,32 @@ public extension Generator {
   }
 
   public func generate () {
-    // TODO: Add a way to listen/unlisten with SIGKILL here
-
     self.elapsed.reset()
     let timer = DispatchSource.makeTimerSource()
     do {
       timer.setEventHandler { [weak self] in
         let generator = self!
-        let count     = generator.generated.count
+
+        if (generator.generated.count == 0) {
+          Log.warning(title: "Generator", message: "No item is generated yet, are you sure there is enough possibility to generate any?")
+        }
+
+        let total     = Double(generator.count)
+        let count     = Double(generator.generated.count)
         let elapsed   = generator.elapsed.end()
-        let (h, m, s) = Int(Double(generator.count) * elapsed / Double(count)).secondsToHMS()
+        let remaining = (total * elapsed / count) - elapsed
+
+        let (h, m, s) = Int(remaining).secondsToHMS()
 
         let hh = String(format: "%02d", h)
         let mm = String(format: "%02d", m)
         let ss = String(format: "%02d", s)
 
-        Log.log(title: "Generator", message: "Computed \(count) items, elapsed \(elapsed) second(s), remains \(hh):\(mm):\(ss) second(s)")
+        var a = String(generator.generated.count)
+        a.insert(separator: ".", every: 3, fromEnd: true)
+        Log.log(title: "Generator", message: "Computed \(a) items, elapsed \(elapsed) second(s), remains \(hh):\(mm):\(ss) second(s)")
       }
-      timer.schedule(deadline: .now(), repeating: 5, leeway: .seconds(0))
+      timer.schedule(deadline: .now() + .seconds(2), repeating: 5, leeway: .seconds(0))
       timer.resume()
     }
 
@@ -108,12 +149,27 @@ public extension Generator {
 
     timer.cancel()
     do {
-      let count   = self.generated.count
+      var count = String(self.generated.count)
+      count.insert(separator: ".", every: 3, fromEnd: true)
+
       let elapsed = self.elapsed.end()
       Log.log(title: "Generator", message: "Computed \(count) items, elapsed \(elapsed) second(s)")
     }
 
-    // TODO: Dump to output file
+    self.writeToOutput()
+  }
+
+}
+
+private extension Generator {
+
+  private func writeToOutput () {
+    if (self.generated.count == 0) {
+      Log.log(title: "Generator", message: "No random items were generated.")
+      return
+    }
+
+    Log.log(title: "Generator", message: "Writing generated items to \"\(self.outputFile)\" file")
   }
 
 }
