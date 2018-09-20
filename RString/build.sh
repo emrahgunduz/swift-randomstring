@@ -14,9 +14,6 @@ if [ $CONF == release ]; then
 fi
 
 swift build --configuration debug \
-            -Xswiftc -whole-module-optimization \
             -Xswiftc -Onone \
-            -Xswiftc -DDEBUG \
-            -Xswiftc -Xfrontend -Xswiftc -warn-long-function-bodies=100 \
-            -Xswiftc -Xfrontend -Xswiftc -warn-long-expression-type-checking=100
+            -Xswiftc -DDEBUG
 ## cp -rf ./.build/debug/rstring /usr/local/bin/rstring
