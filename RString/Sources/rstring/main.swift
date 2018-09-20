@@ -21,8 +21,6 @@ func signalHandler (signal: Int32) {
   NotificationCenter.default.post(name: Notification.Name(rawValue: "com.markakod.signalRecevied"), object: signal)
 }
 
-Signals.trap(signals: [.hup, .int, .quit, .abrt, .kill, .alrm, .term, .pipe], action: signalHandler)
-
 do {
   let release = "1.0"
   let build   = "100"
@@ -37,6 +35,12 @@ do {
   }
 
   let generator = Generator(answer: answer)
+
+  Signals.trap(signals: [.hup, .int, .quit, .abrt, .kill, .alrm, .term, .pipe], action: signalHandler)
   generator.startListeningNotifications()
   generator.generate()
 }
+
+print("\n")
+Log.log(title: "RString", message: "All jobs completed, ending...")
+print("\n\n")
