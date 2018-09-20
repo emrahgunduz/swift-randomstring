@@ -143,7 +143,7 @@ private extension Generator {
   private func startTimer (handler: @escaping () -> Void) {
     self.timer = DispatchSource.makeTimerSource()
     self.timer?.setEventHandler(handler: handler)
-    self.timer?.schedule(deadline: .now() + .seconds(3), repeating: 5, leeway: .seconds(0))
+    self.timer?.schedule(deadline: .now() + .seconds(5), repeating: 5, leeway: .seconds(0))
     self.timer?.resume()
   }
 
