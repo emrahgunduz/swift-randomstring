@@ -10,7 +10,7 @@ import Glibc
 
 public class Generator {
   private let length:     Int
-  private let count:      Int
+  private var count:      Int
   private let allowedSet: String
   private let outputFile: String
 
@@ -73,7 +73,9 @@ public class Generator {
     self.observer = NotificationCenter.default.addObserver(forName: self.notificationName, object: nil, queue: OperationQueue.main, using: signalReceived)
   }
 
-  public func generate () {
+  public func generate (iterations: Int? = nil) {
+    print("\n")
+    Log.log(title: "Compute", message: "Starting...")
     self.elapsed.reset()
 
     self.startTimer { [weak self] in
@@ -107,10 +109,11 @@ public class Generator {
         return "\(hh):\(mm):\(ss)"
       }()
 
-      Log.log(title: elapsedHMS, message: "(\(remainsHMS)) Computed \(countStr) items, \(generator.getMemory()) Mb(s) memory remains")
+      Log.log(title: elapsedHMS, message: "(\(remainsHMS)) Computed \(countStr) items, \(generator.getMemory()) memory remains")
     }
 
-    self.generateRunGroup()
+    let loop = iterations ?? self.count
+    self.generateRunGroup(iterations: loop)
     self.stopTimer()
 
     do {
@@ -119,6 +122,14 @@ public class Generator {
 
       let elapsed = self.elapsed.end()
       Log.log(title: "Computing", message: "Computed \(count) items, elapsed \(elapsed) second(s)")
+    }
+
+    if (self.signalReceived == false) {
+      let missing = self.computeUniqueness()
+      if (missing > 0) {
+        self.generate(iterations: missing)
+        return
+      }
     }
 
     do {
@@ -137,13 +148,13 @@ private extension Generator {
       return "undefined"
     }
 
-    return "\(available) MB(s)"
+    return "\(available) MB"
   }
 
   private func startTimer (handler: @escaping () -> Void) {
     self.timer = DispatchSource.makeTimerSource()
     self.timer?.setEventHandler(handler: handler)
-    self.timer?.schedule(deadline: .now() + .seconds(5), repeating: 5, leeway: .seconds(0))
+    self.timer?.schedule(deadline: .now() + .seconds(1), repeating: 5, leeway: .seconds(0))
     self.timer?.resume()
   }
 
@@ -244,7 +255,12 @@ private extension Generator {
   }
 
   private func writeToOutput () throws {
-    Log.log(title: "Output", message: "Writing to output file")
+    let count    = self.trie.count()
+    var countStr = String(count)
+    countStr.insert(separator: ".", every: 3, fromEnd: true)
+
+    print("\n")
+    Log.log(title: "Output", message: "Writing unique \(countStr) items to output file")
     self.elapsed.reset()
     self.stopTimer()
 
@@ -260,7 +276,7 @@ private extension Generator {
         return "\(hh):\(mm):\(ss)"
       }()
 
-      Log.log(title: elapsedHMS, message: "Still writing, please wait")
+      Log.log(title: elapsedHMS, message: "Still writing, \(generator.getMemory()) memory remains")
     }
 
     var content = ""
@@ -286,11 +302,46 @@ private extension Generator {
     Log.log(title: "Output", message: "Completed writing, \(elapsed.end()) seconds elapsed")
   }
 
-  private func generateRunGroup () {
+  private func computeUniqueness () -> Int {
+    print("\n")
+    Log.warning(title: "Counting", message: "Checking uniqueness, this make some time, please wait")
+    self.elapsed.reset()
+    self.stopTimer()
+
+    self.startTimer { [weak self] in
+      let generator = self!
+
+      let elapsedHMS: String = {
+        let elapsed   = generator.elapsed.end()
+        let (h, m, s) = Int(elapsed).secondsToHMS()
+        let hh        = String(format: "%02d", h)
+        let mm        = String(format: "%02d", m)
+        let ss        = String(format: "%02d", s)
+        return "\(hh):\(mm):\(ss)"
+      }()
+
+      Log.warning(title: elapsedHMS, message: "Still checking, \(generator.getMemory()) memory remains")
+    }
+
+    let count   = Int(self.trie.count())
+    let before  = Int(self.existing.value)
+    let missing = self.count - (count - before)
+
+    self.stopTimer()
+
+    if (missing > 0) {
+      Log.warning(title: "Counting", message: "\(count + before) unique item(s) in trie")
+      Log.warning(title: "Counting", message: "\(missing) more item(s) required")
+    }
+
+    return missing
+  }
+
+  private func generateRunGroup (iterations: Int) {
     let group = DispatchGroup()
     let _     = DispatchQueue.global(qos: .userInitiated)
 
-    DispatchQueue.concurrentPerform(iterations: self.count) { index in
+    DispatchQueue.concurrentPerform(iterations: iterations) { index in
       group.enter()
 
       if (self.signalReceived) {

@@ -21,6 +21,8 @@ func signalHandler (signal: Int32) {
   NotificationCenter.default.post(name: Notification.Name(rawValue: "com.markakod.signalRecevied"), object: signal)
 }
 
+let elapsed = Elapsed()
+
 do {
   let release = "1.0"
   let build   = "100"
@@ -34,6 +36,7 @@ do {
     exit(0)
   }
 
+  elapsed.reset()
   let generator = Generator(answer: answer)
 
   Signals.trap(signals: [.hup, .int, .quit, .abrt, .kill, .alrm, .term, .pipe], action: signalHandler)
@@ -41,6 +44,15 @@ do {
   generator.generate()
 }
 
+let elapsedHMS: String = {
+  let total     = elapsed.end()
+  let (h, m, s) = Int(total).secondsToHMS()
+  let hh        = String(format: "%02d", h)
+  let mm        = String(format: "%02d", m)
+  let ss        = String(format: "%02d", s)
+  return "\(hh):\(mm):\(ss)"
+}()
+
 print("\n")
-Log.log(title: "RString", message: "All jobs completed, ending...")
+Log.log(title: "RString", message: "All jobs completed in \(elapsedHMS) second(s)")
 print("\n\n")
