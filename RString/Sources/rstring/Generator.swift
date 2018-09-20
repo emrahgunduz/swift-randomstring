@@ -154,7 +154,7 @@ private extension Generator {
   private func startTimer (handler: @escaping () -> Void) {
     self.timer = DispatchSource.makeTimerSource()
     self.timer?.setEventHandler(handler: handler)
-    self.timer?.schedule(deadline: .now() + .seconds(1), repeating: 5, leeway: .seconds(0))
+    self.timer?.schedule(deadline: .now() + .seconds(5), repeating: 5, leeway: .seconds(0))
     self.timer?.resume()
   }
 
@@ -254,6 +254,22 @@ private extension Generator {
     Log.log(title: "Trie", message: "Trie database is ready, \(elapsed.end()) seconds elapsed")
   }
 
+  private func computeUniqueness () -> Int {
+    print("\n")
+    Log.warning(title: "Counting", message: "Checking uniqueness, this may take some time, please wait...")
+
+    let count   = Int(self.trie.count())
+    let before  = Int(self.existing.value)
+    let missing = self.count - (count - before)
+
+    if (missing > 0) {
+      Log.warning(title: "Counting", message: "\(count + before) unique item(s) in trie")
+      Log.warning(title: "Counting", message: "\(missing) more item(s) required")
+    }
+
+    return missing
+  }
+
   private func writeToOutput () throws {
     let count    = self.trie.count()
     var countStr = String(count)
@@ -300,41 +316,6 @@ private extension Generator {
 
     self.stopTimer()
     Log.log(title: "Output", message: "Completed writing, \(elapsed.end()) seconds elapsed")
-  }
-
-  private func computeUniqueness () -> Int {
-    print("\n")
-    Log.warning(title: "Counting", message: "Checking uniqueness, this make some time, please wait")
-    self.elapsed.reset()
-    self.stopTimer()
-
-    self.startTimer { [weak self] in
-      let generator = self!
-
-      let elapsedHMS: String = {
-        let elapsed   = generator.elapsed.end()
-        let (h, m, s) = Int(elapsed).secondsToHMS()
-        let hh        = String(format: "%02d", h)
-        let mm        = String(format: "%02d", m)
-        let ss        = String(format: "%02d", s)
-        return "\(hh):\(mm):\(ss)"
-      }()
-
-      Log.warning(title: elapsedHMS, message: "Still checking, \(generator.getMemory()) memory remains")
-    }
-
-    let count   = Int(self.trie.count())
-    let before  = Int(self.existing.value)
-    let missing = self.count - (count - before)
-
-    self.stopTimer()
-
-    if (missing > 0) {
-      Log.warning(title: "Counting", message: "\(count + before) unique item(s) in trie")
-      Log.warning(title: "Counting", message: "\(missing) more item(s) required")
-    }
-
-    return missing
   }
 
   private func generateRunGroup (iterations: Int) {
