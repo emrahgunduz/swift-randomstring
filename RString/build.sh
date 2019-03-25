@@ -9,11 +9,11 @@ fi
 
 if [ $CONF == release ]; then
   swift build --configuration release -Xswiftc -O -Xswiftc -whole-module-optimization
-  ## cp -rf ./.build/release/rstring /usr/local/bin/rstring
+  sudo cp -rf ./.build/release/rstring /usr/local/bin/rstring
   exit
 fi
 
 swift build --configuration debug \
             -Xswiftc -Onone \
             -Xswiftc -DDEBUG
-## cp -rf ./.build/debug/rstring /usr/local/bin/rstring
+sudo cp -rf ./.build/debug/rstring /usr/local/bin/rstring

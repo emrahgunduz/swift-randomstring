@@ -14,7 +14,7 @@ public class Generator {
   private let allowedSet: String
   private let outputFile: String
 
-  private let trie: Trie = Trie<String>()
+  private let trie: Trie = Trie()
   private let elapsed    = Elapsed()
   private var existing   = Counter(0)
   private var generated  = Counter(0)
@@ -237,7 +237,7 @@ private extension Generator {
           trimmed = String(trimmed.dropLast(diff))
         }
 
-        self.trie.insert(collection: trimmed)
+        self.trie.insert(element: trimmed)
         self.existing += 1
 
         group.leave()
@@ -331,7 +331,7 @@ private extension Generator {
       }
 
       let item = String.randomString(length: self.length, allowed: self.allowedSet)
-      self.trie.insert(collection: item)
+      self.trie.insert(element: item)
       self.generated.increment()
 
       group.leave()
