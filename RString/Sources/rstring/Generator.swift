@@ -296,8 +296,8 @@ private extension Generator {
     }
 
     var content = ""
-    self.trie.contents {item in
-      content += String(item.joined()) + "\n"
+    self.trie.contents { item in
+      content += item + "\n"
     }
 
     do {
